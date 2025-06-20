@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงาน Incentive RM - สรุปตามพนักงาน</title>
+    <style>
+        /* ... (CSS ทั้งหมดเหมือนเดิมจากครั้งล่าสุด) ... */
+        body { font-family: 'Tahoma', 'Arial', sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1, h2 { color: #0056b3; text-align: center; }
+        .container { max-width: 1100px; margin: auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .error { color: red; font-weight: bold; margin-top: 20px; text-align: center; }
+        .info { background-color: #e7f3fe; border-left: 6px solid #2196F3; margin-bottom: 20px; padding: 12px 15px; border-radius: 4px; }
+        .info p { margin: 5px 0; }
+        .date-form { margin-bottom: 20px; text-align: center; padding: 15px; background-color: #f9f9f9; border-radius: 5px; }
+        .date-form label { margin-right: 10px; font-weight: bold; }
+        .date-form input[type="date"] { padding: 8px; border-radius: 4px; border: 1px solid #ccc; margin-right: 10px; }
+        .date-form input[type="submit"], .date-form button[type="button"] {
+            padding: 8px 15px; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: inherit; 
+            margin-left: 5px;
+        }
+        .date-form input[type="submit"] { background-color: #28a745; }
+        .date-form input[type="submit"]:hover { background-color: #218838; }
+        .clear-button {
+            background-color: #6c757d; 
+        }
+        .clear-button:hover {
+            background-color: #5a6268; 
+        }
+        .staff-summary-section { margin-top: 30px; }
+        .staff-block { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 20px; background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .staff-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
+        .staff-header-row h3 { margin: 0; color: #007bff; flex-grow: 1; font-size: 1.1em; }
+        .staff-download-button { padding: 6px 12px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 0.8em; border: none; cursor: pointer; white-space: nowrap; }
+        .staff-download-button:hover { background-color: #0056b3; }
+        .transactions-title-centered { font-size: 1.0em; color: #333; margin-top: 15px; margin-bottom: 8px; font-weight:bold; text-align: center; }
+        .transaction-table-wrapper { max-height: 250px; overflow-y: auto; overflow-x: auto; margin-bottom: 15px; border: 1px solid #ccc; }
+        .transaction-table { width: 100%; margin-top: 5px; border-collapse: collapse; }
+        .transaction-table th, .transaction-table td { border: 1px solid #ddd; padding: 5px 7px; font-size: 11px; white-space: nowrap; }
+        .transaction-table th { background-color: #007bff; color: white; position: sticky; top: 0; z-index: 5; text-align: center; }
+        .transaction-table tr:nth-child(even) { background-color: #f2f2f2; }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        .staff-totals-right { margin-top:15px; padding-top:10px; border-top: 1px dashed #ccc; text-align: right; }
+        .staff-totals-right p { margin: 3px 0; font-weight: normal; font-size: 0.9em; }
+        .staff-totals-right p strong { font-weight: bold; }
+        .grand-summary { margin-top: 30px; padding-top: 20px; border-top: 2px solid #0056b3; text-align: right; font-weight: bold; }
+        .grand-summary p { margin: 8px 0; font-size: 1.1em; }
+        .grand-summary .total-amount { color: #28a745; font-size: 1.2em; }
+        .navigation-links { text-align: center; margin-top: 30px; }
+        .navigation-links a { padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px; margin: 0 10px; }
+        .navigation-links a:hover { background-color: #5a6268; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>รายงาน Incentive RM (สรุปตามพนักงาน)</h1>
+
+        <form method="GET" action="{{ url_for('summary_report') }}" class="date-form" id="reportForm">
+            <label for="start_date_report">วันที่เริ่มต้น:</label>
+            <input type="date" id="start_date_report" name="start_date" value="{{ request.args.get('start_date', default_start_date) }}">
+            <label for="end_date_report">วันที่สิ้นสุด:</label>
+            <input type="date" id="end_date_report" name="end_date" value="{{ request.args.get('end_date', default_end_date) }}">
+            <input type="submit" value="แสดงรายงาน">
+            <button type="button" class="clear-button" onclick="clearFormAndReloadReport()">ล้างข้อมูล</button>
+        </form>
+
+         <div class="info">
+            <p><strong>Server:</strong> {{ db_server }}</p>
+            <p><strong>Database:</strong> {{ db_name }}</p>
+            {% if selected_start_date and selected_end_date %}
+                <p><strong>แสดงรายงาน Incentive RM ช่วงวันที่:</strong> {{ selected_start_date }} ถึง {{ selected_end_date }}</p>
+            {% endif %}
+        </div>
+        {% if error_message %}
+            <p class="error">เกิดข้อผิดพลาด: {{ error_message }}</p>
+        {% elif staff_summary %}
+            <div class="staff-summary-section">
+                <h2>สรุป Incentive RM รายพนักงาน</h2>
+                {% for staff in staff_summary %}
+                <div class="staff-block">
+                    <div class="staff-header-row">
+                        <h3>พนักงาน: {{ staff.FullNameStaff }}</h3>
+                        <a href="{{ url_for('download_staff_excel', start_date=active_start_date, end_date=active_end_date, full_name_staff=staff.FullNameStaff) }}" 
+                           class="staff-download-button" download>ดาวน์โหลด</a>
+                    </div>
+                    {% if staff.transactions %}
+                        <h4 class="transactions-title-centered">รายการ</h4>
+                        <div class="transaction-table-wrapper">
+                            <table class="transaction-table">
+                                <thead>
+                                    <tr>
+                                        <th>ลำดับ</th>
+                                        <th>วันที่</th>
+                                        <th>เลขที่เอกสาร</th>
+                                        <th>เลขที่ใบเสร็จ</th>
+                                        <th>รายการ</th>
+                                        <th>ราคา</th>
+                                        <th>ชื่อลูกค้า</th>
+                                        <th>หมายเลขตัวถัง</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for tx in staff.transactions %}
+                                    <tr>
+                                        <td class="text-center">{{ loop.index }}</td>
+                                        <td class="text-center">{{ tx.calc_date }}</td>
+                                        <td class="text-center">{{ tx.JobNo }}</td>
+                                        <td class="text-center">{{ tx.invoice_no }}</td>
+                                        <td class="text-left">{{ tx.TYPE }}</td>
+                                        <td class="text-right">{{ "%.2f"|format(tx.amount) }}</td>
+                                        <td class="text-left">{{ tx.CUSTOMER_NM }}</td>
+                                        <td class="text-left">{{ tx.FrameNo }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p style="text-align:center; font-style:italic;">(ไม่พบรายการย่อยสำหรับพนักงานท่านนี้)</p>
+                    {% endif %}
+                    <div class="staff-totals-right">
+                        <p><strong>จำนวน :</strong> {{ staff.item_count_per_staff }}</p>
+                        <p><strong>ยอดรวม :</strong> {{ staff.total_amount_per_staff_display }} บาท</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="grand-summary">
+                <h2>สรุปภาพรวมทั้งหมดของ Incentive RM</h2>
+                <p>จำนวนรายการทั้งหมด: {{ grand_total_items }} รายการ</p>
+                <p class="total-amount">ยอดเงินรวมทั้งหมด: {{ grand_total_amount_display }} บาท</p>
+            </div>
+        {% else %}
+            <p style="text-align:center; margin-top:20px;">ไม่พบข้อมูล Incentive RM สำหรับสร้างรายงานในช่วงวันที่ที่เลือก หรือยังไม่ได้เลือกช่วงวันที่</p>
+        {% endif %}
+        <div class="navigation-links">
+            <a href="{{ url_for('show_data_on_web', start_date=request.args.get('start_date', default_start_date), end_date=request.args.get('end_date', default_end_date)) }}">กลับไปหน้าตารางข้อมูล Incentive RM</a>
+        </div>
+    </div>
+
+    <script>
+        function clearFormAndReloadReport() {
+            window.location.href = "{{ url_for('summary_report') }}";
+        }
+
+        // --- เพิ่ม JavaScript สำหรับจำกัดวันที่ (เหมือนกับ show_data.html) ---
+        document.addEventListener('DOMContentLoaded', function() {
+            var today = new Date();
+            var dd = String(today.getDate()).padStart(2, '0');
+            var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+            var yyyy = today.getFullYear();
+            var todayString = yyyy + '-' + mm + '-' + dd;
+
+            var startDateInput = document.getElementById('start_date_report');
+            var endDateInput = document.getElementById('end_date_report');
+
+            if (startDateInput) {
+                startDateInput.max = todayString;
+            }
+            if (endDateInput) {
+                endDateInput.max = todayString;
+            }
+        });
+        // --- สิ้นสุด JavaScript สำหรับจำกัดวันที่ ---
+    </script>
+</body>
+</html>

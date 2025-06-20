@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงาน Incentive RM - ตารางข้อมูล</title>
+    <style>
+        /* ... (CSS ทั้งหมดเหมือนเดิมจากครั้งล่าสุด) ... */
+        body { font-family: 'Tahoma', 'Arial', sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1 { color: #0056b3; text-align: center; }
+        table { width: 95%; border-collapse: collapse; margin: 20px auto; box-shadow: 0 2px 15px rgba(0,0,0,0.1); background-color: white; }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 5px 7px;
+            font-size: 11px;
+            white-space: nowrap; 
+        }
+        th { 
+            background-color: #007bff; 
+            color: white; 
+            position: sticky; 
+            top: 0; 
+            z-index: 10;
+            text-align: center; 
+        }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        tr:hover { background-color: #e9ecef; }
+        .container { max-width: 1300px; margin: auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .error { color: red; font-weight: bold; margin-top: 20px; text-align: center; }
+        .info { background-color: #e7f3fe; border-left: 6px solid #2196F3; margin-bottom: 20px; padding: 12px 15px; border-radius: 4px; }
+        .info p { margin: 5px 0; }
+        .summary-download-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 0 5px; }
+        .action-buttons { display: flex; gap: 10px; }
+        .download-button, .report-button { padding: 8px 18px; color: white; text-decoration: none; border-radius: 5px; font-size: 0.95em; border: none; cursor: pointer; white-space: nowrap; }
+        .download-button { background-color: #007bff; }
+        .download-button:hover { background-color: #0056b3; }
+        .report-button { background-color: #17a2b8; }
+        .report-button:hover { background-color: #138496; }
+        .summary-texts-area { text-align: right; }
+        .data-summary { font-weight: bold; margin-bottom: 3px; }
+        .total-amount-summary { font-weight: bold; font-size: 1.1em; color: #28a745; }
+        .table-wrapper { max-height: 600px; overflow-y: auto; overflow-x: auto; border: 1px solid #ccc; }
+        .date-form { margin-bottom: 20px; text-align: center; padding: 15px; background-color: #f9f9f9; border-radius: 5px; }
+        .date-form label { margin-right: 10px; font-weight: bold; }
+        .date-form input[type="date"] { padding: 8px; border-radius: 4px; border: 1px solid #ccc; margin-right: 10px; }
+        .date-form input[type="submit"], .date-form button[type="button"] {
+            padding: 8px 15px; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: inherit; 
+            margin-left: 5px;
+        }
+        .date-form input[type="submit"] { background-color: #28a745; }
+        .date-form input[type="submit"]:hover { background-color: #218838; }
+        .clear-button {
+            background-color: #6c757d; 
+        }
+        .clear-button:hover {
+            background-color: #5a6268; 
+        }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>รายงาน Incentive RM (ตารางข้อมูล)</h1>
+
+        <form method="GET" action="{{ url_for('show_data_on_web') }}" class="date-form" id="dataFormMain">
+            <label for="start_date_main">วันที่เริ่มต้น:</label>
+            <input type="date" id="start_date_main" name="start_date" value="{{ request.args.get('start_date', default_start_date) }}">
+            <label for="end_date_main">วันที่สิ้นสุด:</label>
+            <input type="date" id="end_date_main" name="end_date" value="{{ request.args.get('end_date', default_end_date) }}">
+            <input type="submit" value="แสดงข้อมูล">
+            <button type="button" class="clear-button" onclick="clearFormAndReloadMain()">ล้างข้อมูล</button>
+        </form>
+
+        <div class="info">
+            <p><strong>Server:</strong> {{ db_server }}</p>
+            <p><strong>Database:</strong> {{ db_name }}</p>
+            {% if selected_start_date and selected_end_date %}
+                <p><strong>แสดงข้อมูล Incentive RM ช่วงวันที่:</strong> {{ selected_start_date }} ถึง {{ selected_end_date }}</p>
+            {% endif %}
+        </div>
+        {% if error_message %}
+            <p class="error">เกิดข้อผิดพลาด: {{ error_message }}</p>
+        {% elif rows %}
+            <div class="summary-download-row">
+                <div class="action-buttons">
+                    <a href="{{ url_for('download_excel', start_date=selected_start_date, end_date=selected_end_date) }}" class="download-button" download>ดาวน์โหลดข้อมูล</a>
+                    <a href="{{ url_for('summary_report', start_date=selected_start_date, end_date=selected_end_date) }}" class="report-button">ดูรายงานสรุป</a>
+                </div>
+                <div class="summary-texts-area">
+                    <div class="data-summary">จำนวนข้อมูลที่พบ: {{ rows|length }} แถว</div>
+                    {% if total_amount_display is defined and total_amount_display is not none %}
+                    <div class="total-amount-summary">ยอดรวม Amount ทั้งหมด: {{ total_amount_display }} บาท</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>วันที่</th>
+                            <th>เลขที่เอกสาร</th>
+                            <th>เลขที่ใบเสร็จ</th>
+                            <th>รายการ</th>
+                            <th>ราคา</th>
+                            <th>หมายเลขตัวถัง</th>
+                            <th>ชื่อลูกค้า</th>
+                            <th>พนักงาน</th>
+                            <th>รหัสพนักงาน</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row_data_dict in rows %}
+                        <tr>
+                            <td class="text-center">{{ loop.index }}</td>
+                            <td class="text-center">{{ row_data_dict['calc_date'] }}</td>
+                            <td class="text-center">{{ row_data_dict['JobNo'] }}</td>
+                            <td class="text-center">{{ row_data_dict['invoice_no'] }}</td>
+                            <td class="text-left">{{ row_data_dict['TYPE'] }}</td>
+                            <td class="text-right">{{ "%.2f"|format(row_data_dict['amount']|float) }}</td>
+                            <td class="text-left">{{ row_data_dict['FrameNo'] }}</td>
+                            <td class="text-left">{{ row_data_dict['CUSTOMER_NM'] }}</td>
+                            <td class="text-left">{{ row_data_dict['FullNameStaff'] }}</td>
+                            <td class="text-center">{{ row_data_dict['RECEPTIONIST'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p style="text-align:center; margin-top:20px;">ไม่พบข้อมูล Incentive RM ตามเงื่อนไขที่ระบุ หรือกรุณาเลือกช่วงวันที่</p>
+        {% endif %}
+    </div>
+
+    <script>
+        function clearFormAndReloadMain() {
+            window.location.href = "{{ url_for('show_data_on_web') }}"; 
+        }
+
+        // --- เพิ่ม JavaScript สำหรับจำกัดวันที่ ---
+        document.addEventListener('DOMContentLoaded', function() {
+            var today = new Date();
+            var dd = String(today.getDate()).padStart(2, '0');
+            var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+            var yyyy = today.getFullYear();
+            var todayString = yyyy + '-' + mm + '-' + dd;
+
+            // ตั้งค่า max attribute ให้กับ date input ทั้งสองช่อง
+            var startDateInput = document.getElementById('start_date_main');
+            var endDateInput = document.getElementById('end_date_main');
+
+            if (startDateInput) {
+                startDateInput.max = todayString;
+            }
+            if (endDateInput) {
+                endDateInput.max = todayString;
+            }
+        });
+        // --- สิ้นสุด JavaScript สำหรับจำกัดวันที่ ---
+    </script>
+</body>
+</html>

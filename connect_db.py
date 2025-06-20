@@ -25,7 +25,7 @@ app = Flask(__name__)
 
 # --- Database Connection Settings ---
 # These settings define how to connect to the SQL Server database.
-server = '192.168.20.10' # SQL Server IP address or hostname
+server = '110.168.14.238,1433' # SQL Server IP address or hostname
 database = 'WongDWH'    # Target database name
 username = 'wong'       # SQL Server username
 password = 'wongsky99'  # SQL Server password
